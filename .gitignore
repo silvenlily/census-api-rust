@@ -1,0 +1,7 @@
+/target
+/Cargo.lock
+/.idea/
+/.vs/
+/out/
+ps2-api.iml
+ps2api.code-workspace
