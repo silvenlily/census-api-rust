@@ -20,6 +20,7 @@ pub struct Subscribe {
     pub subscription_names: Vec<ApiSubscriptionName>,
     pub character_ids: Option<Vec<String>>,
     pub server_ids: Option<Vec<String>>,
+    pub match_chars_and_world: Option<bool>,
 }
 
 impl ApiCommand for Subscribe {
@@ -56,13 +57,23 @@ impl ApiCommand for Subscribe {
             }
         }
 
+        let chars_and_world: bool;
+        match &self.match_chars_and_world {
+            None => {
+                chars_and_world = false;
+            }
+            Some(e) => {
+                chars_and_world = *e;
+            }
+        }
+
         return json!({
             "action": "subscribe",
             "characters": Value::Array(chars),
             "eventNames": Value::Array(events),
             "worlds": Value::Array(worlds),
-            "service": "event"
-
+            "service": "event",
+            "logicalAndCharactersWithWorlds": Value::Bool(chars_and_world),
         });
     }
 }

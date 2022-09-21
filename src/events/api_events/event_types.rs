@@ -1,19 +1,19 @@
 pub mod api_subscription_names {
-    pub static PLAYER_LOGIN: &'static str = "PlayerLogin";
-    pub static PLAYER_LOGOUT: &'static str = "PlayerLogout";
-    pub static CONTINENT_LOCK: &'static str = "ContinentLock";
-    pub static CONTINENT_UNLOCK: &'static str = "ContinentUnlock";
-    pub static FACILITY_CONTROL: &'static str = "FacilityControl";
-    pub static METAGAME_EVENT: &'static str = "MetagameEvent";
-    pub static ACHIEVEMENT_EARNED: &'static str = "AchievementEarned";
-    pub static BATTLE_RANK_UP: &'static str = "BattleRankUp";
-    pub static DEATH: &'static str = "Death";
-    pub static ITEM_ADDED: &'static str = "ItemAdded";
-    pub static SKILL_ADDED: &'static str = "SkillAdded";
-    pub static VEHICLE_DESTROY: &'static str = "VehicleDestroy";
-    pub static GAIN_EXPERIENCE: &'static str = "GainExperience";
-    pub static PLAYER_FACILITY_CAPTURE: &'static str = "PlayerFacilityCapture";
-    pub static PLAYER_FACILITY_DEFEND: &'static str = "PlayerFacilityDefend";
+    pub static PLAYER_LOGIN: &str = "PlayerLogin";
+    pub static PLAYER_LOGOUT: &str = "PlayerLogout";
+    pub static CONTINENT_LOCK: &str = "ContinentLock";
+    pub static CONTINENT_UNLOCK: &str = "ContinentUnlock";
+    pub static FACILITY_CONTROL: &str = "FacilityControl";
+    pub static METAGAME_EVENT: &str = "MetagameEvent";
+    pub static ACHIEVEMENT_EARNED: &str = "AchievementEarned";
+    pub static BATTLE_RANK_UP: &str = "BattleRankUp";
+    pub static DEATH: &str = "Death";
+    pub static ITEM_ADDED: &str = "ItemAdded";
+    pub static SKILL_ADDED: &str = "SkillAdded";
+    pub static VEHICLE_DESTROY: &str = "VehicleDestroy";
+    pub static GAIN_EXPERIENCE: &str = "GainExperience";
+    pub static PLAYER_FACILITY_CAPTURE: &str = "PlayerFacilityCapture";
+    pub static PLAYER_FACILITY_DEFEND: &str = "PlayerFacilityDefend";
 }
 
 pub enum ApiSubscriptionName {
@@ -60,10 +60,8 @@ impl ApiSubscriptionName {
     }
 }
 
+#[derive(Debug)]
 pub enum ApiEvent {
-    ServiceStateChange(super::ServiceStateChange),
-    ConnectionStateChange(super::ConnectionStateChange),
-    Help,
     PlayerLogin(super::PlayerLogin),
     PlayerLogout(super::PlayerLogout),
     ContinentLock(super::ContinentLock),
@@ -129,30 +127,14 @@ impl ApiEvent {
             ApiEvent::PlayerFacilityDefend(e) => {
                 return ApiEventTypes::Character(ApiCharacterEvents::PlayerFacilityDefend(e));
             }
-            ApiEvent::ServiceStateChange(e) => {
-                return ApiEventTypes::Status(ApiStatusEvents::ServiceStateChange(e));
-            }
-            ApiEvent::ConnectionStateChange(e) => {
-                return ApiEventTypes::Status(ApiStatusEvents::ConnectionStateChange(e));
-            }
-            ApiEvent::Help => {
-                return ApiEventTypes::Status(ApiStatusEvents::Help);
-            }
         }
     }
 }
 
 pub enum ApiEventTypes {
-    Status(ApiStatusEvents),
     Connection(ApiConnectionEvents),
     World(ApiWorldEvents),
     Character(ApiCharacterEvents),
-}
-
-pub enum ApiStatusEvents {
-    ServiceStateChange(super::ServiceStateChange),
-    ConnectionStateChange(super::ConnectionStateChange),
-    Help,
 }
 
 pub enum ApiConnectionEvents {

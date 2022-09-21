@@ -1,15 +1,21 @@
 use std::sync::{Arc, Mutex};
 
 use futures_util::{
-    stream::{SplitSink, SplitStream},
-    SinkExt, StreamExt,
+    SinkExt,
+    stream::{SplitSink, SplitStream}, StreamExt,
 };
 use native_tls::TlsConnector;
+use serde_json::Value;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
-    connect_async_tls_with_config, tungstenite::Message, Connector, MaybeTlsStream, WebSocketStream,
+    connect_async_tls_with_config, Connector, MaybeTlsStream, tungstenite::Message, WebSocketStream,
 };
 
+use crate::events::api_events::{
+    ContinentLock, ContinentUnlock, FacilityControl, MetagameEvent, PlayerLogin, PlayerLogout,
+};
+use crate::events::api_events::Event;
+use crate::events::api_events::event_types::ApiEvent;
 use crate::utils::CensusError;
 
 use self::api_command::ApiCommand;
@@ -18,9 +24,9 @@ pub mod api_command;
 pub mod api_events;
 
 pub mod environments {
-    pub static PC: &'static str = "ps2";
-    pub static PS4_US: &'static str = "ps2ps4us";
-    pub static PS4_EU: &'static str = "ps2ps4eu";
+    pub static PC: &str = "ps2";
+    pub static PS4_US: &str = "ps2ps4us";
+    pub static PS4_EU: &str = "ps2ps4eu";
 }
 
 async fn connect_tls_stream(
@@ -77,8 +83,8 @@ pub async fn connect(environment: &str, serviceid: &str) -> Result<EventClient, 
 
     return Ok(EventClient {
         reconnect_count: 0_f64,
-        serviceid: serviceid.clone().to_string(),
-        environment: environment.clone().to_string(),
+        serviceid: serviceid.to_string(),
+        environment: environment.to_string(),
         ws_write: Arc::new(Mutex::new(ws_write)),
         ws_read: Arc::new(Mutex::new(ws_read)),
     });
@@ -94,7 +100,8 @@ pub struct EventClient {
 }
 
 impl EventClient {
-    pub async fn next_event(&mut self) -> Result<(), CensusError> {
+    #[async_recursion::async_recursion(? Send)]
+    pub async fn next_event(&mut self) -> Result<ApiEvent, CensusError> {
         let try_next_ws_msg = self.next_ws_msg().await;
 
         match try_next_ws_msg {
@@ -108,27 +115,85 @@ impl EventClient {
                         &self.serviceid,
                         &self.reconnect_count,
                     )
-                    .await?;
+                        .await?;
 
                     let (ws_write, ws_read) = tls_streams.split();
 
                     self.ws_write = Arc::new(Mutex::new(ws_write));
                     self.ws_read = Arc::new(Mutex::new(ws_read));
 
-                    return Ok(());
+                    return self.next_event().await;
                 }
 
-                println!("ws msg: {}", msg.to_text().unwrap());
+                let try_event_txt = msg.into_text();
 
-                // TODO: parse incoming api events
+                match try_event_txt {
+                    Err(err) => {
+                        return Err(CensusError {
+                            err_msg: "Could not parse ws message to text".to_string(),
+                            parent_err: Some(err.to_string()),
+                        });
+                    }
+                    Ok(event_text) => {
+                        println!("got ws message: {}",event_text);
 
-                return Ok(());
+                        let try_event_json: Result<Value, serde_json::Error> =
+                            serde_json::from_str(&event_text);
+
+                        match try_event_json {
+                            Err(err) => {
+                                return Err(CensusError {
+                                    err_msg: "Could not parse ws message to json".to_string(),
+                                    parent_err: Some(err.to_string()),
+                                });
+                            }
+                            Ok(event_json) => {
+                                let event_type_v = &event_json["type"];
+                                if event_type_v.is_string() {
+                                    let event_type = event_type_v.to_string();
+
+                                    match event_type.as_str() {
+                                        "\"heartbeat\"" => {
+                                            return self.next_event().await;
+                                        }
+                                        "\"serviceMessage\"" => {
+                                            return parse_service_message(event_json);
+                                        }
+                                        "\"serviceStateChanged\"" => {
+                                            return self.next_event().await;
+                                        }
+                                        "\"connectionStateChanged\"" => {
+                                            return self.next_event().await;
+                                        }
+                                        _ => {
+                                            let msg =
+                                                "Unknown event type: ".to_string() + &event_type;
+                                            return Err(CensusError {
+                                                err_msg: msg,
+                                                parent_err: None,
+                                            });
+                                        }
+                                    }
+                                }
+                                let subscribe_response_v = &event_json["subscribe"];
+                                if subscribe_response_v.is_null() {
+                                    return self.next_event().await;
+                                }
+
+                                return Err(CensusError {
+                                    err_msg: "Could not determine event type".to_string(),
+                                    parent_err: None,
+                                });
+                            }
+                        }
+                    }
+                }
             }
         }
     }
     pub async fn next_ws_msg(&mut self) -> Result<Message, CensusError> {
         if self.reconnect_count > 1_f64 {
-            self.reconnect_count = self.reconnect_count - 0.1_f64;
+            self.reconnect_count -= 0.1_f64;
         }
 
         let try_ws_read_lock = self.ws_read.lock();
@@ -190,6 +255,46 @@ impl EventClient {
                     }),
                 }
             }
+        }
+    }
+}
+
+pub fn parse_service_message(message: Value) -> Result<ApiEvent, CensusError> {
+    let payload = &message["payload"];
+    let event_name = &payload["event_name"];
+
+    if !event_name.is_string() {
+        return Err(CensusError {
+            err_msg: "Not a service message".to_string(),
+            parent_err: None,
+        });
+    }
+
+    match event_name.as_str().unwrap() {
+        "PlayerLogin" => {
+            return Ok(ApiEvent::PlayerLogin(PlayerLogin::from_json(payload.clone())?));
+        }
+        "PlayerLogout" => {
+            return Ok(ApiEvent::PlayerLogout(PlayerLogout::from_json(payload.clone())?));
+        }
+        "FacilityControl" => {
+            return Ok(ApiEvent::FacilityControl(FacilityControl::from_json(payload.clone())?));
+        }
+        "ContinentLock" => {
+            return Ok(ApiEvent::ContinentLock(ContinentLock::from_json(payload.clone())?));
+        }
+        "ContinentUnlock" => {
+            return Ok(ApiEvent::ContinentUnlock(ContinentUnlock::from_json(payload.clone())?));
+        }
+        "MetagameEvent" => {
+            return Ok(ApiEvent::MetagameEvent(MetagameEvent::from_json(payload.clone())?));
+        }
+        _ => {
+            let msg = "Unknown event name: ".to_string() + event_name.as_str().unwrap();
+            return Err(CensusError {
+                err_msg: msg,
+                parent_err: None,
+            });
         }
     }
 }
