@@ -11,10 +11,11 @@ use tokio_tungstenite::{
     connect_async_tls_with_config, Connector, MaybeTlsStream, tungstenite::Message, WebSocketStream,
 };
 
+use crate::events::api_events::{Event, GainExperience, ItemAdded, PlayerFacilityCapture, PlayerFacilityDefend, SkillAdded, VehicleDestroy};
 use crate::events::api_events::{
-    ContinentLock, ContinentUnlock, FacilityControl, MetagameEvent, PlayerLogin, PlayerLogout,
+    AchievementEarned, BattleRankUp, ContinentLock, ContinentUnlock, Death, FacilityControl,
+    MetagameEvent, PlayerLogin, PlayerLogout,
 };
-use crate::events::api_events::Event;
 use crate::events::api_events::event_types::ApiEvent;
 use crate::utils::CensusError;
 
@@ -135,7 +136,7 @@ impl EventClient {
                         });
                     }
                     Ok(event_text) => {
-                        println!("got ws message: {}",event_text);
+                        //println!("got ws message: {}", event_text);
 
                         let try_event_json: Result<Value, serde_json::Error> =
                             serde_json::from_str(&event_text);
@@ -272,23 +273,40 @@ pub fn parse_service_message(message: Value) -> Result<ApiEvent, CensusError> {
 
     match event_name.as_str().unwrap() {
         "PlayerLogin" => {
-            return Ok(ApiEvent::PlayerLogin(PlayerLogin::from_json(payload.clone())?));
+            return Ok(ApiEvent::PlayerLogin(PlayerLogin::from_json(payload)?));
         }
         "PlayerLogout" => {
-            return Ok(ApiEvent::PlayerLogout(PlayerLogout::from_json(payload.clone())?));
+            return Ok(ApiEvent::PlayerLogout(PlayerLogout::from_json(payload)?));
         }
         "FacilityControl" => {
-            return Ok(ApiEvent::FacilityControl(FacilityControl::from_json(payload.clone())?));
+            return Ok(ApiEvent::FacilityControl(FacilityControl::from_json(
+                payload,
+            )?));
         }
         "ContinentLock" => {
-            return Ok(ApiEvent::ContinentLock(ContinentLock::from_json(payload.clone())?));
+            return Ok(ApiEvent::ContinentLock(ContinentLock::from_json(payload)?));
         }
         "ContinentUnlock" => {
-            return Ok(ApiEvent::ContinentUnlock(ContinentUnlock::from_json(payload.clone())?));
+            return Ok(ApiEvent::ContinentUnlock(ContinentUnlock::from_json(
+                payload,
+            )?));
         }
         "MetagameEvent" => {
-            return Ok(ApiEvent::MetagameEvent(MetagameEvent::from_json(payload.clone())?));
+            return Ok(ApiEvent::MetagameEvent(MetagameEvent::from_json(payload)?));
         }
+        "AchievementEarned" => {
+            return Ok(ApiEvent::AchievementEarned(AchievementEarned::from_json(
+                payload,
+            )?));
+        }
+        "BattleRankUp" => return Ok(ApiEvent::BattleRankUp(BattleRankUp::from_json(payload)?)),
+        "Death" => return Ok(ApiEvent::Death(Death::from_json(payload)?)),
+        "ItemAdded" => return Ok(ApiEvent::ItemAdded(ItemAdded::from_json(payload)?)),
+        "SkillAdded" => return Ok(ApiEvent::SkillAdded(SkillAdded::from_json(payload)?)),
+        "VehicleDestroy"=> return Ok(ApiEvent::VehicleDestroy(VehicleDestroy::from_json(payload)?)),
+        "GainExperience"=> return Ok(ApiEvent::GainExperience(GainExperience::from_json(payload)?)),
+        "PlayerFacilityCapture"=> return Ok(ApiEvent::PlayerFacilityCapture(PlayerFacilityCapture::from_json(payload)?)),
+        "PlayerFacilityDefend"=> return Ok(ApiEvent::PlayerFacilityDefend(PlayerFacilityDefend::from_json(payload)?)),
         _ => {
             let msg = "Unknown event name: ".to_string() + event_name.as_str().unwrap();
             return Err(CensusError {

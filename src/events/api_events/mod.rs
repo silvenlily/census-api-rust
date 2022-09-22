@@ -27,11 +27,11 @@ pub struct PlayerLogin {
 }
 
 impl Event for PlayerLogin {
-    fn from_json(json: Value) -> Result<Self, CensusError> {
+    fn from_json(json: &Value) -> Result<Self, CensusError> {
         return Ok(Self {
-            character_id: parse_character_id(&json)?,
-            timestamp: parse_timestamp(&json)?,
-            world_id: parse_world_id(&json)?,
+            character_id: parse_character_id(json)?,
+            timestamp: parse_timestamp(json)?,
+            world_id: parse_world_id(json)?,
         });
     }
 }
@@ -44,11 +44,11 @@ pub struct PlayerLogout {
 }
 
 impl Event for PlayerLogout {
-    fn from_json(json: Value) -> Result<Self, CensusError> {
+    fn from_json(json: &Value) -> Result<Self, CensusError> {
         return Ok(Self {
-            character_id: parse_character_id(&json)?,
-            timestamp: parse_timestamp(&json)?,
-            world_id: parse_world_id(&json)?,
+            character_id: parse_character_id(json)?,
+            timestamp: parse_timestamp(json)?,
+            world_id: parse_world_id(json)?,
         });
     }
 }
@@ -69,18 +69,18 @@ pub struct ContinentLock {
 }
 
 impl Event for ContinentLock {
-    fn from_json(json: Value) -> Result<Self, CensusError> {
+    fn from_json(json: &Value) -> Result<Self, CensusError> {
         return Ok(Self {
-            timestamp: parse_timestamp(&json)?,
-            world_id: parse_world_id(&json)?,
-            zone_id: parse_zone_id(&json)?,
-            triggering_faction: parse_string("triggering_faction", &json)?,
-            previous_faction: parse_string("previous_faction", &json)?,
-            vs_population: parse_string("vs_population", &json)?,
-            nc_population: parse_string("nc_population", &json)?,
-            tr_population: parse_string("tr_population", &json)?,
-            metagame_event_id: parse_string("metagame_event_id", &json)?,
-            event_type: parse_string("event_type", &json)?,
+            timestamp: parse_timestamp(json)?,
+            world_id: parse_world_id(json)?,
+            zone_id: parse_zone_id(json)?,
+            triggering_faction: parse_string("triggering_faction", json)?,
+            previous_faction: parse_string("previous_faction", json)?,
+            vs_population: parse_string("vs_population", json)?,
+            nc_population: parse_string("nc_population", json)?,
+            tr_population: parse_string("tr_population", json)?,
+            metagame_event_id: parse_string("metagame_event_id", json)?,
+            event_type: parse_string("event_type", json)?,
         });
     }
 }
@@ -100,18 +100,18 @@ pub struct ContinentUnlock {
 }
 
 impl Event for ContinentUnlock {
-    fn from_json(json: Value) -> Result<Self, CensusError> {
+    fn from_json(json: &Value) -> Result<Self, CensusError> {
         return Ok(Self {
-            timestamp: parse_timestamp(&json)?,
-            world_id: parse_world_id(&json)?,
-            zone_id: parse_zone_id(&json)?,
-            triggering_faction: parse_string("triggering_faction", &json)?,
-            previous_faction: parse_string("previous_faction", &json)?,
-            vs_population: parse_string("vs_population", &json)?,
-            nc_population: parse_string("nc_population", &json)?,
-            tr_population: parse_string("tr_population", &json)?,
-            metagame_event_id: parse_string("metagame_event_id", &json)?,
-            event_type: parse_string("event_type", &json)?,
+            timestamp: parse_timestamp(json)?,
+            world_id: parse_world_id(json)?,
+            zone_id: parse_zone_id(json)?,
+            triggering_faction: parse_string("triggering_faction", json)?,
+            previous_faction: parse_string("previous_faction", json)?,
+            vs_population: parse_string("vs_population", json)?,
+            nc_population: parse_string("nc_population", json)?,
+            tr_population: parse_string("tr_population", json)?,
+            metagame_event_id: parse_string("metagame_event_id", json)?,
+            event_type: parse_string("event_type", json)?,
         });
     }
 }
@@ -129,16 +129,16 @@ pub struct FacilityControl {
 }
 
 impl Event for FacilityControl {
-    fn from_json(json: Value) -> Result<Self, CensusError> {
+    fn from_json(json: &Value) -> Result<Self, CensusError> {
         return Ok(Self {
-            timestamp: parse_timestamp(&json)?,
-            world_id: parse_world_id(&json)?,
-            zone_id: parse_zone_id(&json)?,
-            facility_id: parse_string("facility_id", &json)?,
-            new_faction_id: try_parse_to("new_faction_id", &json)?,
-            old_faction_id: try_parse_to("old_faction_id", &json)?,
-            outfit_id: parse_string("outfit_id", &json)?,
-            duration_held: parse_string("duration_held", &json)?,
+            timestamp: parse_timestamp(json)?,
+            world_id: parse_world_id(json)?,
+            zone_id: parse_zone_id(json)?,
+            facility_id: parse_string("facility_id", json)?,
+            new_faction_id: try_parse_to("new_faction_id", json)?,
+            old_faction_id: try_parse_to("old_faction_id", json)?,
+            outfit_id: parse_string("outfit_id", json)?,
+            duration_held: parse_string("duration_held", json)?,
         });
     }
 }
@@ -157,17 +157,17 @@ pub struct MetagameEvent {
 }
 
 impl Event for MetagameEvent {
-    fn from_json(json: Value) -> Result<Self, CensusError> {
+    fn from_json(json: &Value) -> Result<Self, CensusError> {
         return Ok(Self {
-            timestamp: parse_timestamp(&json)?,
-            world_id: parse_world_id(&json)?,
-            zone_id: parse_zone_id(&json)?,
-            experience_bonus: parse_string("experience_bonus", &json)?,
-            faction_nc: parse_string("faction_nc", &json)?,
-            faction_tr: parse_string("faction_tr", &json)?,
-            faction_vs: parse_string("faction_vs", &json)?,
-            metagame_event_id: parse_string("metagame_event_id", &json)?,
-            metagame_event_state: parse_string("metagame_event_state", &json)?,
+            timestamp: parse_timestamp(json)?,
+            world_id: parse_world_id(json)?,
+            zone_id: parse_zone_id(json)?,
+            experience_bonus: parse_string("experience_bonus", json)?,
+            faction_nc: parse_string("faction_nc", json)?,
+            faction_tr: parse_string("faction_tr", json)?,
+            faction_vs: parse_string("faction_vs", json)?,
+            metagame_event_id: parse_string("metagame_event_id", json)?,
+            metagame_event_state: parse_string("metagame_event_state", json)?,
         });
     }
 }
@@ -177,8 +177,20 @@ pub struct AchievementEarned {
     pub character_id: String,
     pub timestamp: String,
     pub world_id: u8,
-    pub achievment_id: u64,
     pub zone_id: u32,
+    pub achievement_id: u64,
+}
+
+impl Event for AchievementEarned {
+    fn from_json(json: &Value) -> Result<Self, CensusError> {
+        return Ok(Self {
+            character_id: parse_character_id(json)?,
+            timestamp: parse_timestamp(json)?,
+            world_id: parse_world_id(json)?,
+            zone_id: parse_zone_id(json)?,
+            achievement_id: try_parse_to("achievement_id", json)?,
+        });
+    }
 }
 
 #[derive(Debug)]
@@ -190,10 +202,22 @@ pub struct BattleRankUp {
     pub battle_rank: u8,
 }
 
+impl Event for BattleRankUp {
+    fn from_json(json: &Value) -> Result<Self, CensusError> {
+        return Ok(Self {
+            character_id: parse_character_id(json)?,
+            timestamp: parse_timestamp(json)?,
+            world_id: parse_world_id(json)?,
+            zone_id: parse_zone_id(json)?,
+            battle_rank: try_parse_to("battle_rank", json)?,
+        });
+    }
+}
+
 #[derive(Debug)]
 pub struct Death {
     pub attacker_character_id: String,
-    pub attacker_fire_mod_id: String,
+    pub attacker_fire_mode_id: String,
     pub attacker_loadout_id: String,
     pub attacker_vehicle_id: String,
     pub attacker_weapon_id: String,
@@ -207,24 +231,70 @@ pub struct Death {
     pub zone_id: u32,
 }
 
+impl Event for Death {
+    fn from_json(json: &Value) -> Result<Self, CensusError> {
+        return Ok(Self {
+            attacker_character_id: parse_string("attacker_character_id", json)?,
+            attacker_fire_mode_id: parse_string("attacker_fire_mode_id", json)?,
+            attacker_loadout_id: parse_string("attacker_loadout_id", json)?,
+            attacker_vehicle_id: parse_string("attacker_vehicle_id", json)?,
+            attacker_weapon_id: parse_string("attacker_weapon_id", json)?,
+            character_id: parse_character_id(json)?,
+            character_loadout_id: parse_string("character_loadout_id", json)?,
+            is_critical: parse_bool_from_numstr("is_critical", json)?,
+            is_headshot: parse_bool_from_numstr("is_headshot", json)?,
+            timestamp: parse_timestamp(json)?,
+            vehicle_id: parse_string("vehicle_id", json)?,
+            world_id: parse_world_id(json)?,
+            zone_id: parse_zone_id(json)?,
+        });
+    }
+}
+
 #[derive(Debug)]
 pub struct ItemAdded {
     pub character_id: String,
-    pub context: String,
-    pub item_count: u64,
-    pub item_id: String,
     pub timestamp: String,
     pub world_id: u8,
     pub zone_id: u32,
+    pub context: String,
+    pub item_count: u64,
+    pub item_id: String,
+}
+
+impl Event for ItemAdded {
+    fn from_json(json: &Value) -> Result<Self, CensusError> {
+        return Ok(Self {
+            character_id: parse_character_id(json)?,
+            timestamp: parse_timestamp(json)?,
+            world_id: parse_world_id(json)?,
+            zone_id: parse_zone_id(json)?,
+            context: parse_string("context", json)?,
+            item_count: try_parse_to("item_count", json)?,
+            item_id: parse_string("item_id", json)?,
+        });
+    }
 }
 
 #[derive(Debug)]
 pub struct SkillAdded {
     pub character_id: String,
-    pub skill_id: String,
     pub timestamp: String,
     pub world_id: u8,
     pub zone_id: u32,
+    pub skill_id: String,
+}
+
+impl Event for SkillAdded {
+    fn from_json(json: &Value) -> Result<Self, CensusError> {
+        return Ok(Self {
+            character_id: parse_character_id(json)?,
+            timestamp: parse_timestamp(json)?,
+            world_id: parse_world_id(json)?,
+            zone_id: parse_zone_id(json)?,
+            skill_id: parse_string("skill_id", json)?,
+        });
+    }
 }
 
 #[derive(Debug)]
@@ -242,6 +312,24 @@ pub struct VehicleDestroy {
     pub zone_id: u32,
 }
 
+impl Event for VehicleDestroy {
+    fn from_json(json: &Value) -> Result<Self, CensusError> {
+        return Ok(Self {
+            attacker_character_id: "".to_string(),
+            attacker_loadout_id: "".to_string(),
+            attacker_vehicle_id: "".to_string(),
+            attacker_weapon_id: "".to_string(),
+            character_id: parse_character_id(json)?,
+            timestamp: parse_timestamp(json)?,
+            world_id: parse_world_id(json)?,
+            zone_id: parse_zone_id(json)?,
+            facility_id: parse_string("facility_id", json)?,
+            faction_id: try_parse_to("faction_id", json)?,
+            vehicle_id: parse_string("vehicle_id", json)?,
+        });
+    }
+}
+
 #[derive(Debug)]
 pub struct GainExperience {
     pub character_id: String,
@@ -254,6 +342,21 @@ pub struct GainExperience {
     pub other_id: String,
 }
 
+impl Event for GainExperience {
+    fn from_json(json: &Value) -> Result<Self, CensusError> {
+        return Ok(Self {
+            character_id: parse_character_id(json)?,
+            timestamp: parse_timestamp(json)?,
+            world_id: parse_world_id(json)?,
+            zone_id: parse_zone_id(json)?,
+            amount: parse_string("amount", json)?,
+            experience_id: parse_string("experience_id", json)?,
+            loudout_id: parse_string("loudout_id", json)?,
+            other_id: parse_string("other_id", json)?,
+        });
+    }
+}
+
 #[derive(Debug)]
 pub struct PlayerFacilityCapture {
     pub character_id: String,
@@ -262,6 +365,19 @@ pub struct PlayerFacilityCapture {
     pub zone_id: u32,
     pub facility_id: String,
     pub outfit_id: String,
+}
+
+impl Event for PlayerFacilityCapture {
+    fn from_json(json: &Value) -> Result<Self, CensusError> {
+        return Ok(Self {
+            character_id: parse_character_id(json)?,
+            timestamp: parse_timestamp(json)?,
+            world_id: parse_world_id(json)?,
+            zone_id: parse_zone_id(json)?,
+            facility_id: parse_string("facility_id", json)?,
+            outfit_id: parse_string("outfit_id", json)?,
+        });
+    }
 }
 
 #[derive(Debug)]
@@ -274,6 +390,19 @@ pub struct PlayerFacilityDefend {
     pub outfit_id: String,
 }
 
+impl Event for PlayerFacilityDefend {
+    fn from_json(json: &Value) -> Result<Self, CensusError> {
+        return Ok(Self {
+            character_id: parse_character_id(json)?,
+            timestamp: parse_timestamp(json)?,
+            world_id: parse_world_id(json)?,
+            zone_id: parse_zone_id(json)?,
+            facility_id: parse_string("facility_id", json)?,
+            outfit_id: parse_string("outfit_id", json)?,
+        });
+    }
+}
+
 pub trait Event: Sized {
-    fn from_json(json: Value) -> Result<Self, CensusError>;
+    fn from_json(json: &Value) -> Result<Self, CensusError>;
 }

@@ -4,6 +4,29 @@ use serde_json::Value;
 
 use crate::utils::CensusError;
 
+pub fn parse_bool_from_numstr(key: &str, json: &Value) -> Result<bool, CensusError> {
+    let v = &json[key];
+    if !v.is_string() {
+        match v.as_str().unwrap() {
+            "0"=>{
+                return Ok(false);
+            }
+            "1"=>{
+                return Ok(true);
+            }
+            _=>{}
+        }
+    }
+
+    return Err(CensusError {
+        err_msg: "Malformed Service Message, could not parse field: '".to_string()
+            + key
+            + "' to string.",
+        parent_err: None,
+    });
+
+}
+
 pub fn parse_string(key: &str, json: &Value) -> Result<String, CensusError> {
     if !json[key].is_string() {
         return Err(CensusError {
