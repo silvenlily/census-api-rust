@@ -1,10 +1,11 @@
 use std::{sync::Arc, time::SystemTime};
 
-use serde_json::Value;
+use num_traits::ToPrimitive;
+use serde_json::{json, Value};
 
 use crate::utils::CensusError;
 
-use super::{item::Item, query_builder::Resolveable, CensusValue, RestClient};
+use super::{census_value::CensusValue, item::Item, query_builder::Resolveable, RestClient};
 
 pub enum CharacterResolves {
     Item,
@@ -121,17 +122,17 @@ impl CharacterClass {
 ///
 /// Represents a character
 ///
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Character {
     owning_client: Arc<RestClient>,
-    pub id: String,
+    id: String,
     name: CensusValue<String>,
     faction_id: CensusValue<u8>,
-    head_id: CensusValue<u16>,
-    title_id: CensusValue<u16>,
-    created_at: CensusValue<SystemTime>,
-    last_updated: CensusValue<SystemTime>,
-    last_login: CensusValue<SystemTime>,
+    head_id: CensusValue<String>,
+    title_id: CensusValue<String>,
+    created_at: CensusValue<String>,
+    last_updated: CensusValue<String>,
+    last_login: CensusValue<String>,
     login_count: CensusValue<u64>,
     minutes_played: CensusValue<u64>,
     certs_earned: CensusValue<u64>,
@@ -143,48 +144,78 @@ pub struct Character {
     battle_rank_progress: CensusValue<u8>,
     profile_id: CensusValue<u8>,
     daily_ribbon_count: CensusValue<u8>,
-    daily_ribbon_time: CensusValue<SystemTime>,
+    daily_ribbon_time: CensusValue<String>,
     is_asp: CensusValue<bool>,
     // resolved by item or item_full
-    items: CensusValue<Vec<Item>>,
+    //items: CensusValue<Vec<Item>>,
     // resolved by profile
-    class: CensusValue<CharacterClass>,
+    //class: CensusValue<CharacterClass>,
     //
 }
 
 impl Character {
-    fn from_json_value(
-        json_value: &Value,
-        rest_client: &Arc<RestClient>,
-    ) -> Result<Self, CensusError> {
-        todo!()
+    fn update(&mut self,json:&Value) {
+        self.name.update(&json["name"]["first"]);
+        self.faction_id.update(&json["faction_id"]);
+        self.head_id.update(&json["head_id"]);
+        self.title_id.update(&json["title_id"]);
+        self.created_at.update(&json["times"]["creation"]);
+        self.last_updated.update(&json["times"]["last_save"]);
+        self.last_login.update(&json["times"]["last_login"]);
+        self.login_count.update(&json["times"]["login_count"]);
+        self.minutes_played.update(&json["times"]["minutes_played"]);
+        self.certs_earned.update(&json["certs"]["earned_points"]);
+        self.certs_gifted.update(&json["certs"]["gifted_points"]);
+        self.certs_spent.update(&json["certs"]["spent_points"]);
+        self.certs_available.update(&json["certs"]["available_points"]);
+        self.certs_progress.update(&json["certs"]["percent_to_next"]);
+        self.battle_rank.update(&json["battle_rank"]["value"]);
+        self.battle_rank_progress.update(&json["battle_rank"]["percent_to_next"]);
+        self.profile_id.update(&json["profile_id"]);
+        self.daily_ribbon_count.update(&json["daily_ribbon"]["count"]);
+        self.daily_ribbon_time.update(&json["daily_ribbon"]["time"]);
+        self.is_asp.update(&json["prestige_level"]);
     }
 
-    pub async fn new(id: String) -> Self {
-        //return Character {}
-        todo!()
+    pub fn new(id: String, rest_client: Arc<RestClient>) -> Self {
+        Character {
+            owning_client: rest_client,
+            id,
+            name: CensusValue { value: None, last_updated: None },
+            faction_id: CensusValue { value: None, last_updated: None },
+            head_id: CensusValue { value: None, last_updated: None },
+            title_id: CensusValue { value: None, last_updated: None },
+            created_at: CensusValue { value: None, last_updated: None },
+            last_updated: CensusValue { value: None, last_updated: None },
+            last_login: CensusValue { value: None, last_updated: None },
+            login_count: CensusValue { value: None, last_updated: None },
+            minutes_played: CensusValue { value: None, last_updated: None },
+            certs_earned: CensusValue { value: None, last_updated: None },
+            certs_gifted: CensusValue { value: None, last_updated: None },
+            certs_spent: CensusValue { value: None, last_updated: None },
+            certs_available: CensusValue { value: None, last_updated: None },
+            certs_progress: CensusValue { value: None, last_updated: None },
+            battle_rank: CensusValue { value: None, last_updated: None },
+            battle_rank_progress: CensusValue { value: None, last_updated: None },
+            profile_id: CensusValue { value: None, last_updated: None },
+            daily_ribbon_count: CensusValue { value: None, last_updated: None },
+            daily_ribbon_time: CensusValue { value: None, last_updated: None },
+            is_asp: CensusValue { value: None, last_updated: None },
+        }
     }
 
-    /// Creates a character and prefetches the given list of resolves
-    pub async fn new_prefeched(
-        rest_client: Arc<RestClient>,
-        id: String,
-        resolves: Option<Vec<CharacterResolves>>,
-    ) -> Result<Self, CensusError> {
-        let mut query = rest_client.get_query_builder("character");
+    pub async fn fetch_resolves(&mut self, resolves: Option<Vec<CharacterResolves>> ) -> Result<(),CensusError> {
+        let mut query = self.owning_client.get_query_builder("character");
 
-        match resolves {
-            Some(resolves) => {
-                for r in resolves {
-                    query.resolve(&r.to_resolve_string());
-                }
+        if let Some(resolves) = resolves {
+            for r in resolves {
+                query.resolve(&r.to_resolve_string());
             }
-            None => {}
         }
 
         query.limit(1);
 
-        query.search("character_id".to_string(), id);
+        query.search("character_id".to_string(), self.id.clone());
 
         let char = query.get().await;
 
@@ -193,78 +224,48 @@ impl Character {
             Ok(jsonval) => {
                 let jsonchar = jsonval["character_list"][0].clone();
 
-                let char_w = Character::from_json_value(&jsonchar, &rest_client);
+                self.update(&jsonchar);
 
-                match char_w {
-                    Ok(char) => return Ok(char),
-                    Err(err) => return Err(err),
-                }
+                return Ok(());
+
             }
         }
+
     }
 
-    /// Gets characters by a vec of ids with the included resolves.
-    ///
-    /// For vecs of ids larger then 64 ids will be divided into blocks of 64 and a separate request will be sent for each block.
-    pub async fn from_ids_with_resolves(
+    /// Creates a character and prefetches the given list of resolves
+    pub async fn new_prefeched(
         rest_client: Arc<RestClient>,
-        ids: Vec<String>,
+        id: String,
         resolves: Option<Vec<CharacterResolves>>,
-    ) -> Result<Vec<Result<Self, CensusError>>, CensusError> {
-        let mut query = rest_client.get_query_builder("character");
+    ) -> Result<Self, CensusError> {
+        let mut char = Character::new(id,rest_client);
 
-        let chunked_ids = ids.chunks(64);
+        char.fetch_resolves(resolves).await?;
 
-        let mut chars: Vec<Result<Self, CensusError>> = Vec::with_capacity(ids.len());
+        return Ok(char);
 
-        for idblock in chunked_ids {
-            match resolves {
-                Some(resolves) => {
-                    for r in resolves {
-                        query.resolve(&r.to_resolve_string());
-                    }
-                }
-                None => {}
-            }
+    }
 
-            query.limit(idblock.len().try_into().unwrap());
+    fn from_json_value(json: &Value, rest_client: Arc<RestClient>) -> Result<Self, CensusError> {
 
-            let idsearch: String = idblock.join(",");
+        let id_v = &json["character_id"];
 
-            query.search("character_id".to_string(), idsearch);
-
-            match query.get().await {
-                Err(err) => return Err(err),
-                Ok(jsonval) => {
-                    let jsonchars = jsonval["character_list"].clone();
-
-                    let mut char_index: u16 = 0;
-                    loop {
-                        let nextchar = jsonchars[char_index.to_string()].clone();
-
-                        if nextchar.is_null() {
-                            break;
-                        }
-
-                        char_index = char_index + 1;
-
-                        let char_w = Character::from_json_value(&nextchar, &rest_client);
-
-                        match char_w {
-                            Ok(char) => {
-                                chars.push(Ok(char));
-                            }
-                            Err(err) => {
-                                chars.push(Err(err));
-                            }
-                        }
-                    }
-
-                    return Ok(chars);
-                }
-            }
+        if !id_v.is_string() {
+            return Err(CensusError {
+                err_msg: "Could not get character id".to_string(),
+                parent_err: None,
+            });
         }
 
-        return Ok(chars);
+        let mut char = Character::new(id_v.to_string(),rest_client);
+
+        char.update(json);
+
+        return Ok(char);
     }
+
+    //pub async fn get_id(&self) -> String {
+    //
+    //}
 }

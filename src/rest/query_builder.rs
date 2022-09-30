@@ -132,6 +132,7 @@ impl QueryBuilder {
         if res.is_err() {
             return Err(CensusError {
                 err_msg: res.expect_err("Unreachable").to_string(),
+                parent_err: None,
             });
         }
 
@@ -142,6 +143,7 @@ impl QueryBuilder {
         if response_res.is_err() {
             return Err(CensusError {
                 err_msg: response_res.expect_err("Unreachable").to_string(),
+                parent_err: None,
             });
         }
 
@@ -151,6 +153,7 @@ impl QueryBuilder {
         if res_wrapped.is_err() {
             return Err(CensusError {
                 err_msg: res_wrapped.expect_err("Unreachable").to_string(),
+                parent_err: None,
             });
         }
 

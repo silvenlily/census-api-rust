@@ -1,22 +1,25 @@
 use std::sync::{Arc, Mutex};
 
 use futures_util::{
-    SinkExt,
-    stream::{SplitSink, SplitStream}, StreamExt,
+    stream::{SplitSink, SplitStream},
+    SinkExt, StreamExt,
 };
 use native_tls::TlsConnector;
 use serde_json::Value;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
-    connect_async_tls_with_config, Connector, MaybeTlsStream, tungstenite::Message, WebSocketStream,
+    connect_async_tls_with_config, tungstenite::Message, Connector, MaybeTlsStream, WebSocketStream,
 };
 
-use crate::events::api_events::{Event, GainExperience, ItemAdded, PlayerFacilityCapture, PlayerFacilityDefend, SkillAdded, VehicleDestroy};
+use crate::events::api_events::event_types::ApiEvent;
 use crate::events::api_events::{
     AchievementEarned, BattleRankUp, ContinentLock, ContinentUnlock, Death, FacilityControl,
     MetagameEvent, PlayerLogin, PlayerLogout,
 };
-use crate::events::api_events::event_types::ApiEvent;
+use crate::events::api_events::{
+    Event, GainExperience, ItemAdded, PlayerFacilityCapture, PlayerFacilityDefend, SkillAdded,
+    VehicleDestroy,
+};
 use crate::utils::CensusError;
 
 use self::api_command::ApiCommand;
@@ -116,7 +119,7 @@ impl EventClient {
                         &self.serviceid,
                         &self.reconnect_count,
                     )
-                        .await?;
+                    .await?;
 
                     let (ws_write, ws_read) = tls_streams.split();
 
@@ -303,10 +306,26 @@ pub fn parse_service_message(message: Value) -> Result<ApiEvent, CensusError> {
         "Death" => return Ok(ApiEvent::Death(Death::from_json(payload)?)),
         "ItemAdded" => return Ok(ApiEvent::ItemAdded(ItemAdded::from_json(payload)?)),
         "SkillAdded" => return Ok(ApiEvent::SkillAdded(SkillAdded::from_json(payload)?)),
-        "VehicleDestroy"=> return Ok(ApiEvent::VehicleDestroy(VehicleDestroy::from_json(payload)?)),
-        "GainExperience"=> return Ok(ApiEvent::GainExperience(GainExperience::from_json(payload)?)),
-        "PlayerFacilityCapture"=> return Ok(ApiEvent::PlayerFacilityCapture(PlayerFacilityCapture::from_json(payload)?)),
-        "PlayerFacilityDefend"=> return Ok(ApiEvent::PlayerFacilityDefend(PlayerFacilityDefend::from_json(payload)?)),
+        "VehicleDestroy" => {
+            return Ok(ApiEvent::VehicleDestroy(VehicleDestroy::from_json(
+                payload,
+            )?))
+        }
+        "GainExperience" => {
+            return Ok(ApiEvent::GainExperience(GainExperience::from_json(
+                payload,
+            )?))
+        }
+        "PlayerFacilityCapture" => {
+            return Ok(ApiEvent::PlayerFacilityCapture(
+                PlayerFacilityCapture::from_json(payload)?,
+            ))
+        }
+        "PlayerFacilityDefend" => {
+            return Ok(ApiEvent::PlayerFacilityDefend(
+                PlayerFacilityDefend::from_json(payload)?,
+            ))
+        }
         _ => {
             let msg = "Unknown event name: ".to_string() + event_name.as_str().unwrap();
             return Err(CensusError {

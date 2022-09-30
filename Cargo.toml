@@ -25,3 +25,4 @@ serde_json = { version = "1.0.85" }
 serde = { version = "1.0.144", features = ["derive"] }
 native-tls = "0.2.10"
 async-recursion = "1.0.0"
+num-traits = "0.2.15"

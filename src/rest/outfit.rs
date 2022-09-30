@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::SystemTime};
 
-use super::{query_builder::Resolveable, CensusValue, RestClient};
+use super::{query_builder::Resolveable, census_value::CensusValue, RestClient};
 
 enum OutfitResolves {
     Leader,

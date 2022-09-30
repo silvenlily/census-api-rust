@@ -8,13 +8,13 @@ pub fn parse_bool_from_numstr(key: &str, json: &Value) -> Result<bool, CensusErr
     let v = &json[key];
     if !v.is_string() {
         match v.as_str().unwrap() {
-            "0"=>{
+            "0" => {
                 return Ok(false);
             }
-            "1"=>{
+            "1" => {
                 return Ok(true);
             }
-            _=>{}
+            _ => {}
         }
     }
 
@@ -24,7 +24,6 @@ pub fn parse_bool_from_numstr(key: &str, json: &Value) -> Result<bool, CensusErr
             + "' to string.",
         parent_err: None,
     });
-
 }
 
 pub fn parse_string(key: &str, json: &Value) -> Result<String, CensusError> {
@@ -42,9 +41,7 @@ pub fn parse_string(key: &str, json: &Value) -> Result<String, CensusError> {
 pub fn try_parse_to<T: FromStr>(key: &str, json: &Value) -> Result<T, CensusError> {
     if !json[key].is_string() {
         return Err(CensusError {
-            err_msg: "Malformed Service Message, could not find field: '".to_string()
-                + key
-                + "'",
+            err_msg: "Malformed Service Message, could not find field: '".to_string() + key + "'",
             parent_err: None,
         });
     };
