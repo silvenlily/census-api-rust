@@ -1,17 +1,17 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use futures_util::{
-    stream::{SplitSink, SplitStream},
-    SinkExt, StreamExt,
+    SinkExt,
+    stream::{SplitSink, SplitStream}, StreamExt,
 };
 use native_tls::TlsConnector;
 use serde_json::Value;
 use tokio::net::TcpStream;
+use tokio::sync::Mutex;
 use tokio_tungstenite::{
-    connect_async_tls_with_config, tungstenite::Message, Connector, MaybeTlsStream, WebSocketStream,
+    connect_async_tls_with_config, Connector, MaybeTlsStream, tungstenite::Message, WebSocketStream,
 };
 
-use crate::events::api_events::event_types::ApiEvent;
 use crate::events::api_events::{
     AchievementEarned, BattleRankUp, ContinentLock, ContinentUnlock, Death, FacilityControl,
     MetagameEvent, PlayerLogin, PlayerLogout,
@@ -20,6 +20,7 @@ use crate::events::api_events::{
     Event, GainExperience, ItemAdded, PlayerFacilityCapture, PlayerFacilityDefend, SkillAdded,
     VehicleDestroy,
 };
+use crate::events::api_events::event_types::ApiEvent;
 use crate::utils::CensusError;
 
 use self::api_command::ApiCommand;
@@ -103,94 +104,140 @@ pub struct EventClient {
     ws_read: Arc<Mutex<SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>>>,
 }
 
-impl EventClient {
-    #[async_recursion::async_recursion(? Send)]
-    pub async fn next_event(&mut self) -> Result<ApiEvent, CensusError> {
-        let try_next_ws_msg = self.next_ws_msg().await;
+enum RecursionResult {
+    Repeat,
+    Reconnect,
+    ApiEvent(ApiEvent),
+    CensusError(CensusError),
+}
 
-        match try_next_ws_msg {
-            Err(err) => {
-                return Err(err);
+async fn recursive_next_event_internal(
+    client: &EventClient,
+    try_next_ws_msg: Result<Message, CensusError>,
+) -> RecursionResult {
+    match try_next_ws_msg {
+        Err(err) => {
+            return RecursionResult::CensusError(err);
+        }
+        Ok(msg) => {
+            if msg.is_close() {
+                return RecursionResult::Reconnect;
             }
-            Ok(msg) => {
-                if msg.is_close() {
-                    let tls_streams = connect_tls_stream(
+
+            let try_event_txt = msg.into_text();
+
+            match try_event_txt {
+                Err(err) => {
+                    return RecursionResult::CensusError(CensusError {
+                        err_msg: "Could not parse ws message to text".to_string(),
+                        parent_err: Some(err.to_string()),
+                    });
+                }
+                Ok(event_text) => {
+                    //println!("got ws message: {}", event_text);
+
+                    let try_event_json: Result<Value, serde_json::Error> =
+                        serde_json::from_str(&event_text);
+
+                    match try_event_json {
+                        Err(err) => {
+                            return RecursionResult::CensusError(CensusError {
+                                err_msg: "Could not parse ws message to json".to_string(),
+                                parent_err: Some(err.to_string()),
+                            });
+                        }
+                        Ok(event_json) => {
+                            let event_type_v = &event_json["type"];
+                            if event_type_v.is_string() {
+                                let event_type = event_type_v.to_string();
+
+                                match event_type.as_str() {
+                                    "\"heartbeat\"" => {
+                                        return RecursionResult::Repeat;
+                                    }
+                                    "\"serviceMessage\"" => {
+                                        let parsed = parse_service_message(event_json);
+
+                                        match parsed {
+                                            Ok(a) => {
+                                                return RecursionResult::ApiEvent(a);
+                                            }
+                                            Err(b) => {
+                                                return RecursionResult::CensusError(b);
+                                            }
+                                        }
+                                    }
+                                    "\"serviceStateChanged\"" => {
+                                        return RecursionResult::Repeat;
+                                    }
+                                    "\"connectionStateChanged\"" => {
+                                        return RecursionResult::Repeat;
+                                    }
+                                    _ => {
+                                        let msg = "Unknown event type: ".to_string() + &event_type;
+                                        return RecursionResult::CensusError(CensusError {
+                                            err_msg: msg,
+                                            parent_err: None,
+                                        });
+                                    }
+                                }
+                            }
+                            let subscribe_response_v = &event_json["subscribe"];
+                            if subscribe_response_v.is_null() {
+                                return RecursionResult::Repeat;
+                            }
+
+                            return RecursionResult::CensusError(CensusError {
+                                err_msg: "Could not determine event type".to_string(),
+                                parent_err: None,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl EventClient {
+    pub async fn next_event(&mut self) -> Result<ApiEvent, CensusError> {
+        loop {
+            let try_next_ws_msg = self.next_ws_msg().await;
+            let try_next_event = recursive_next_event_internal(self, try_next_ws_msg).await;
+
+            match try_next_event {
+                RecursionResult::Repeat => {}
+                RecursionResult::Reconnect => {
+                    let try_tls_streams = connect_tls_stream(
                         &self.environment,
                         &self.serviceid,
                         &self.reconnect_count,
                     )
-                    .await?;
+                        .await;
+
+                    let tls_streams;
+                    match try_tls_streams {
+                        Ok(a) => {
+                            tls_streams = a;
+                        }
+                        Err(err) => {
+                            return Err(CensusError {
+                                err_msg: "Could not reconnect to census api".to_string(),
+                                parent_err: Some(err.to_string()),
+                            });
+                        }
+                    }
 
                     let (ws_write, ws_read) = tls_streams.split();
 
                     self.ws_write = Arc::new(Mutex::new(ws_write));
                     self.ws_read = Arc::new(Mutex::new(ws_read));
-
-                    return self.next_event().await;
                 }
-
-                let try_event_txt = msg.into_text();
-
-                match try_event_txt {
-                    Err(err) => {
-                        return Err(CensusError {
-                            err_msg: "Could not parse ws message to text".to_string(),
-                            parent_err: Some(err.to_string()),
-                        });
-                    }
-                    Ok(event_text) => {
-                        //println!("got ws message: {}", event_text);
-
-                        let try_event_json: Result<Value, serde_json::Error> =
-                            serde_json::from_str(&event_text);
-
-                        match try_event_json {
-                            Err(err) => {
-                                return Err(CensusError {
-                                    err_msg: "Could not parse ws message to json".to_string(),
-                                    parent_err: Some(err.to_string()),
-                                });
-                            }
-                            Ok(event_json) => {
-                                let event_type_v = &event_json["type"];
-                                if event_type_v.is_string() {
-                                    let event_type = event_type_v.to_string();
-
-                                    match event_type.as_str() {
-                                        "\"heartbeat\"" => {
-                                            return self.next_event().await;
-                                        }
-                                        "\"serviceMessage\"" => {
-                                            return parse_service_message(event_json);
-                                        }
-                                        "\"serviceStateChanged\"" => {
-                                            return self.next_event().await;
-                                        }
-                                        "\"connectionStateChanged\"" => {
-                                            return self.next_event().await;
-                                        }
-                                        _ => {
-                                            let msg =
-                                                "Unknown event type: ".to_string() + &event_type;
-                                            return Err(CensusError {
-                                                err_msg: msg,
-                                                parent_err: None,
-                                            });
-                                        }
-                                    }
-                                }
-                                let subscribe_response_v = &event_json["subscribe"];
-                                if subscribe_response_v.is_null() {
-                                    return self.next_event().await;
-                                }
-
-                                return Err(CensusError {
-                                    err_msg: "Could not determine event type".to_string(),
-                                    parent_err: None,
-                                });
-                            }
-                        }
-                    }
+                RecursionResult::ApiEvent(event) => {
+                    return Ok(event);
+                }
+                RecursionResult::CensusError(err) => {
+                    return Err(err);
                 }
             }
         }
@@ -200,65 +247,47 @@ impl EventClient {
             self.reconnect_count -= 0.1_f64;
         }
 
-        let try_ws_read_lock = self.ws_read.lock();
+        let mut ws_read_lock = self.ws_read.lock().await;
 
-        match try_ws_read_lock {
-            Err(err) => {
-                return Err(CensusError {
-                    err_msg: "Poisoned websocket connection".to_string(),
-                    parent_err: Some(err.to_string()),
-                });
-            }
-            Ok(mut ws_read_lock) => {
-                let try_next = ws_read_lock.next().await;
+        let try_next = ws_read_lock.next().await;
 
-                match try_next {
-                    Some(next) => {
-                        match next {
-                            Err(err) => {
-                                return Err(CensusError {
-                                    err_msg: "Unable to get next websocket message".to_string(),
-                                    parent_err: Some(err.to_string()),
-                                });
-                            }
-                            Ok(msg) => {
-                                return Ok(msg);
-                            }
-                        };
-                    }
-                    None => {
+        match try_next {
+            Some(next) => {
+                match next {
+                    Err(err) => {
                         return Err(CensusError {
-                            err_msg: "Unable to send message to census api".to_string(),
-                            parent_err: None,
+                            err_msg: "Unable to get next websocket message".to_string(),
+                            parent_err: Some(err.to_string()),
                         });
                     }
+                    Ok(msg) => {
+                        return Ok(msg);
+                    }
                 };
+            }
+            None => {
+                return Err(CensusError {
+                    err_msg: "Unable to send message to census api".to_string(),
+                    parent_err: None,
+                });
             }
         };
     }
     pub async fn send(&mut self, command: &impl ApiCommand) -> Result<(), CensusError> {
         let payload = command.to_json().to_string();
 
-        let try_ws_write_lock = self.ws_write.lock();
+        let mut ws_write_lock = self.ws_write.lock().await;
 
-        match try_ws_write_lock {
+        let res = ws_write_lock
+            .send(Message::Text(payload))
+            .await;
+
+        match res {
+            Ok(_) => Ok(()),
             Err(err) => Err(CensusError {
-                err_msg: "Poisoned websocket connection".to_string(),
+                err_msg: "Unable to send message to census api".to_string(),
                 parent_err: Some(err.to_string()),
             }),
-            Ok(mut ws_write_lock) => {
-                let res = ws_write_lock
-                    .send(tokio_tungstenite::tungstenite::Message::Text(payload))
-                    .await;
-
-                match res {
-                    Ok(_) => Ok(()),
-                    Err(err) => Err(CensusError {
-                        err_msg: "Unable to send message to census api".to_string(),
-                        parent_err: Some(err.to_string()),
-                    }),
-                }
-            }
         }
     }
 }
@@ -309,22 +338,22 @@ pub fn parse_service_message(message: Value) -> Result<ApiEvent, CensusError> {
         "VehicleDestroy" => {
             return Ok(ApiEvent::VehicleDestroy(VehicleDestroy::from_json(
                 payload,
-            )?))
+            )?));
         }
         "GainExperience" => {
             return Ok(ApiEvent::GainExperience(GainExperience::from_json(
                 payload,
-            )?))
+            )?));
         }
         "PlayerFacilityCapture" => {
             return Ok(ApiEvent::PlayerFacilityCapture(
                 PlayerFacilityCapture::from_json(payload)?,
-            ))
+            ));
         }
         "PlayerFacilityDefend" => {
             return Ok(ApiEvent::PlayerFacilityDefend(
                 PlayerFacilityDefend::from_json(payload)?,
-            ))
+            ));
         }
         _ => {
             let msg = "Unknown event name: ".to_string() + event_name.as_str().unwrap();

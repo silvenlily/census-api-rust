@@ -154,7 +154,7 @@ pub struct Character {
 }
 
 impl Character {
-    fn update(&mut self,json:&Value) {
+    fn update(&mut self, json: &Value) {
         self.name.update(&json["name"]["first"]);
         self.faction_id.update(&json["faction_id"]);
         self.head_id.update(&json["head_id"]);
@@ -167,12 +167,16 @@ impl Character {
         self.certs_earned.update(&json["certs"]["earned_points"]);
         self.certs_gifted.update(&json["certs"]["gifted_points"]);
         self.certs_spent.update(&json["certs"]["spent_points"]);
-        self.certs_available.update(&json["certs"]["available_points"]);
-        self.certs_progress.update(&json["certs"]["percent_to_next"]);
+        self.certs_available
+            .update(&json["certs"]["available_points"]);
+        self.certs_progress
+            .update(&json["certs"]["percent_to_next"]);
         self.battle_rank.update(&json["battle_rank"]["value"]);
-        self.battle_rank_progress.update(&json["battle_rank"]["percent_to_next"]);
+        self.battle_rank_progress
+            .update(&json["battle_rank"]["percent_to_next"]);
         self.profile_id.update(&json["profile_id"]);
-        self.daily_ribbon_count.update(&json["daily_ribbon"]["count"]);
+        self.daily_ribbon_count
+            .update(&json["daily_ribbon"]["count"]);
         self.daily_ribbon_time.update(&json["daily_ribbon"]["time"]);
         self.is_asp.update(&json["prestige_level"]);
     }
@@ -181,30 +185,93 @@ impl Character {
         Character {
             owning_client: rest_client,
             id,
-            name: CensusValue { value: None, last_updated: None },
-            faction_id: CensusValue { value: None, last_updated: None },
-            head_id: CensusValue { value: None, last_updated: None },
-            title_id: CensusValue { value: None, last_updated: None },
-            created_at: CensusValue { value: None, last_updated: None },
-            last_updated: CensusValue { value: None, last_updated: None },
-            last_login: CensusValue { value: None, last_updated: None },
-            login_count: CensusValue { value: None, last_updated: None },
-            minutes_played: CensusValue { value: None, last_updated: None },
-            certs_earned: CensusValue { value: None, last_updated: None },
-            certs_gifted: CensusValue { value: None, last_updated: None },
-            certs_spent: CensusValue { value: None, last_updated: None },
-            certs_available: CensusValue { value: None, last_updated: None },
-            certs_progress: CensusValue { value: None, last_updated: None },
-            battle_rank: CensusValue { value: None, last_updated: None },
-            battle_rank_progress: CensusValue { value: None, last_updated: None },
-            profile_id: CensusValue { value: None, last_updated: None },
-            daily_ribbon_count: CensusValue { value: None, last_updated: None },
-            daily_ribbon_time: CensusValue { value: None, last_updated: None },
-            is_asp: CensusValue { value: None, last_updated: None },
+            name: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            faction_id: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            head_id: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            title_id: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            created_at: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            last_updated: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            last_login: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            login_count: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            minutes_played: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            certs_earned: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            certs_gifted: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            certs_spent: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            certs_available: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            certs_progress: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            battle_rank: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            battle_rank_progress: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            profile_id: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            daily_ribbon_count: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            daily_ribbon_time: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            is_asp: CensusValue {
+                value: None,
+                last_updated: None,
+            },
         }
     }
 
-    pub async fn fetch_resolves(&mut self, resolves: Option<Vec<CharacterResolves>> ) -> Result<(),CensusError> {
+    pub async fn fetch_resolves(
+        &mut self,
+        resolves: Option<Vec<CharacterResolves>>,
+    ) -> Result<(), CensusError> {
         let mut query = self.owning_client.get_query_builder("character");
 
         if let Some(resolves) = resolves {
@@ -227,10 +294,8 @@ impl Character {
                 self.update(&jsonchar);
 
                 return Ok(());
-
             }
         }
-
     }
 
     /// Creates a character and prefetches the given list of resolves
@@ -239,16 +304,14 @@ impl Character {
         id: String,
         resolves: Option<Vec<CharacterResolves>>,
     ) -> Result<Self, CensusError> {
-        let mut char = Character::new(id,rest_client);
+        let mut char = Character::new(id, rest_client);
 
         char.fetch_resolves(resolves).await?;
 
         return Ok(char);
-
     }
 
     fn from_json_value(json: &Value, rest_client: Arc<RestClient>) -> Result<Self, CensusError> {
-
         let id_v = &json["character_id"];
 
         if !id_v.is_string() {
@@ -258,7 +321,7 @@ impl Character {
             });
         }
 
-        let mut char = Character::new(id_v.to_string(),rest_client);
+        let mut char = Character::new(id_v.to_string(), rest_client);
 
         char.update(json);
 
