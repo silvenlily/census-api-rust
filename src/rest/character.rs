@@ -124,28 +124,34 @@ impl CharacterClass {
 ///
 #[derive(Clone, Debug)]
 pub struct Character {
-    owning_client: Arc<RestClient>,
-    id: String,
-    name: CensusValue<String>,
-    faction_id: CensusValue<u8>,
-    head_id: CensusValue<String>,
-    title_id: CensusValue<String>,
-    created_at: CensusValue<String>,
-    last_updated: CensusValue<String>,
-    last_login: CensusValue<String>,
-    login_count: CensusValue<u64>,
-    minutes_played: CensusValue<u64>,
-    certs_earned: CensusValue<u64>,
-    certs_gifted: CensusValue<u64>,
-    certs_spent: CensusValue<u64>,
-    certs_available: CensusValue<u64>,
-    certs_progress: CensusValue<u8>,
-    battle_rank: CensusValue<u8>,
-    battle_rank_progress: CensusValue<u8>,
-    profile_id: CensusValue<u8>,
-    daily_ribbon_count: CensusValue<u8>,
-    daily_ribbon_time: CensusValue<String>,
-    is_asp: CensusValue<bool>,
+    pub owning_client: Arc<RestClient>,
+    pub id: String,
+    pub name: CensusValue<String>,
+    pub faction_id: CensusValue<u8>,
+    pub head_id: CensusValue<String>,
+    pub title_id: CensusValue<String>,
+    pub created_at: CensusValue<String>,
+    pub last_updated: CensusValue<String>,
+    pub last_login: CensusValue<String>,
+    pub login_count: CensusValue<u64>,
+    pub minutes_played: CensusValue<u64>,
+    pub certs_earned: CensusValue<u64>,
+    pub certs_gifted: CensusValue<u64>,
+    pub certs_spent: CensusValue<u64>,
+    pub certs_available: CensusValue<u64>,
+    pub certs_progress: CensusValue<u8>,
+    pub battle_rank: CensusValue<u8>,
+    pub battle_rank_progress: CensusValue<u8>,
+    pub profile_id: CensusValue<u8>,
+    pub daily_ribbon_count: CensusValue<u8>,
+    pub daily_ribbon_time: CensusValue<String>,
+    pub is_asp: CensusValue<bool>,
+    // resolved by outfit
+    pub outfit_id: CensusValue<String>,
+    pub outfit_id_merged: CensusValue<String>,
+    pub outfit_name: CensusValue<String>,
+    pub outfit_tag: CensusValue<String>,
+    pub outfit_member_join_date: CensusValue<String>,
     // resolved by item or item_full
     //items: CensusValue<Vec<Item>>,
     // resolved by profile
@@ -179,6 +185,11 @@ impl Character {
             .update(&json["daily_ribbon"]["count"]);
         self.daily_ribbon_time.update(&json["daily_ribbon"]["time"]);
         self.is_asp.update(&json["prestige_level"]);
+        self.outfit_id.update(&json["outfit"]["outfit_id"]);
+        self.outfit_tag.update(&json["outfit"]["alias"]);
+        self.outfit_name.update(&json["outfit"]["name"]);
+        self.outfit_id_merged.update(&json["outfit"]["outfit_id_merged"]);
+        self.outfit_member_join_date.update(&json["outfit"]["member_since_date"]);
     }
 
     pub fn new(id: String, rest_client: Arc<RestClient>) -> Self {
@@ -262,6 +273,26 @@ impl Character {
                 last_updated: None,
             },
             is_asp: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            outfit_id: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            outfit_id_merged: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            outfit_name: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            outfit_tag: CensusValue {
+                value: None,
+                last_updated: None,
+            },
+            outfit_member_join_date: CensusValue {
                 value: None,
                 last_updated: None,
             },

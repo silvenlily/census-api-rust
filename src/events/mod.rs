@@ -1,17 +1,18 @@
 use std::sync::Arc;
 
 use futures_util::{
-    SinkExt,
-    stream::{SplitSink, SplitStream}, StreamExt,
+    stream::{SplitSink, SplitStream},
+    SinkExt, StreamExt,
 };
 use native_tls::TlsConnector;
 use serde_json::Value;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio_tungstenite::{
-    connect_async_tls_with_config, Connector, MaybeTlsStream, tungstenite::Message, WebSocketStream,
+    connect_async_tls_with_config, tungstenite::Message, Connector, MaybeTlsStream, WebSocketStream,
 };
 
+use crate::events::api_events::event_types::ApiEvent;
 use crate::events::api_events::{
     AchievementEarned, BattleRankUp, ContinentLock, ContinentUnlock, Death, FacilityControl,
     MetagameEvent, PlayerLogin, PlayerLogout,
@@ -20,7 +21,6 @@ use crate::events::api_events::{
     Event, GainExperience, ItemAdded, PlayerFacilityCapture, PlayerFacilityDefend, SkillAdded,
     VehicleDestroy,
 };
-use crate::events::api_events::event_types::ApiEvent;
 use crate::utils::CensusError;
 
 use self::api_command::ApiCommand;
@@ -213,7 +213,7 @@ impl EventClient {
                         &self.serviceid,
                         &self.reconnect_count,
                     )
-                        .await;
+                    .await;
 
                     let tls_streams;
                     match try_tls_streams {
@@ -278,9 +278,7 @@ impl EventClient {
 
         let mut ws_write_lock = self.ws_write.lock().await;
 
-        let res = ws_write_lock
-            .send(Message::Text(payload))
-            .await;
+        let res = ws_write_lock.send(Message::Text(payload)).await;
 
         match res {
             Ok(_) => Ok(()),

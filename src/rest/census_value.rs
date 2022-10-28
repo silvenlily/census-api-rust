@@ -4,7 +4,7 @@ use num_traits::ToPrimitive;
 use serde_json::Value;
 
 #[derive(Clone, Debug)]
-pub(crate) struct CensusValue<T: Clone> {
+pub struct CensusValue<T: Clone> {
     pub last_updated: Option<SystemTime>,
     pub value: Option<T>,
 }
@@ -214,8 +214,6 @@ impl CensusValue<bool> {
     pub fn update(&mut self, json: &Value) -> bool {
         if json.is_string() {
             let str = json.as_str().unwrap();
-
-            let v: Option<bool>;
 
             match str.to_lowercase().as_str() {
                 "true" => {

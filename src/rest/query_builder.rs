@@ -125,7 +125,7 @@ impl QueryBuilder {
     pub async fn get(&self) -> Result<Value, CensusError> {
         let req = self.build_query("get");
 
-        println!("query");
+        //println!("query");
 
         let res = req.send().await;
 

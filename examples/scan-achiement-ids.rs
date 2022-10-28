@@ -3,6 +3,8 @@ use std::collections::HashSet;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::Path;
+use std::time::SystemTime;
+
 
 #[tokio::main]
 async fn main() {
@@ -69,7 +71,7 @@ async fn main() {
                 if let events::api_events::event_types::ApiEvent::AchievementEarned(a) = e {
                     if !achievement_ids.contains(&a.achievement_id) {
                         let msg = "[".to_string()
-                            + &chrono::Utc::now().to_string()
+                            + &SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis().to_string()
                             + "] New id found: "
                             + &a.achievement_id.to_string();
                         println!("{}", msg);
