@@ -39,14 +39,13 @@ pub struct Achievement {
 impl Achievement {
     fn update(&mut self, json: &Value) {
         self.name.update(&json["name"]["en"]);
-        self.item_id.update(&json[""]);
-        self.name.update(&json[""]);
-        self.reward_id.update(&json[""]);
-        self.repeatable.update(&json[""]);
-        self.description.update(&json[""]);
-        self.image_set_id.update(&json[""]);
-        self.image_id.update(&json[""]);
-        self.image_path.update(&json[""]);
+        self.item_id.update(&json["item_id"]);
+        self.reward_id.update(&json["reward_id"]);
+        self.repeatable.update(&json["repeatable"]);
+        self.description.update(&json["description"]["en"]);
+        self.image_set_id.update(&json["image_set_id"]);
+        self.image_id.update(&json["image_id"]);
+        self.image_path.update(&json["image_path"]);
     }
 
     pub fn new(id: u64, rest_client: Arc<RestClient>) -> Self {
