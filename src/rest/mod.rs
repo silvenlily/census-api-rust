@@ -8,6 +8,7 @@ pub const CENSUS_URL: &str = "https://census.daybreakgames.com/";
 pub mod api;
 pub mod census_value;
 pub mod character;
+pub mod achievement;
 pub mod item;
 pub mod outfit;
 pub mod query_builder;
