@@ -1,10 +1,11 @@
-use ps2api::events::{self, api_command::Subscribe};
 use std::collections::HashSet;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::Path;
 use std::time::SystemTime;
 
+use ps2api::events::{self, api_command::Subscribe, EventClient};
+use ps2api::utils::CensusError;
 
 #[tokio::main]
 async fn main() {
@@ -43,9 +44,20 @@ async fn main() {
 
     println!("Loaded {} ids", achievement_ids.len());
 
-    let mut evc = events::connect(events::environments::PC, "example")
-        .await
-        .unwrap();
+
+    let mut evc = {
+        let mut try_evc = events::connect(events::environments::PC, "example")
+            .await;
+        match try_evc {
+            Ok(e) => {
+                e
+            }
+            Err(err) => {
+                println!("{}", err);
+                return;
+            }
+        }
+    };
 
     let server_ids = Some(vec!["all".to_string()]);
 

@@ -1,18 +1,18 @@
-use std::sync::Arc;
-
 use futures_util::{
-    stream::{SplitSink, SplitStream},
-    SinkExt, StreamExt,
+    SinkExt,
+    stream::{SplitSink, SplitStream}, StreamExt,
 };
 use native_tls::TlsConnector;
+use rustls::{ClientConfig, Connection, OwnedTrustAnchor, RootCertStore};
 use serde_json::Value;
+use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio_tungstenite::{
-    connect_async_tls_with_config, tungstenite::Message, Connector, MaybeTlsStream, WebSocketStream,
+    connect_async, connect_async_tls_with_config, Connector, MaybeTlsStream, tungstenite::Message,
+    WebSocketStream,
 };
 
-use crate::events::api_events::event_types::ApiEvent;
 use crate::events::api_events::{
     AchievementEarned, BattleRankUp, ContinentLock, ContinentUnlock, Death, FacilityControl,
     MetagameEvent, PlayerLogin, PlayerLogout,
@@ -21,6 +21,7 @@ use crate::events::api_events::{
     Event, GainExperience, ItemAdded, PlayerFacilityCapture, PlayerFacilityDefend, SkillAdded,
     VehicleDestroy,
 };
+use crate::events::api_events::event_types::ApiEvent;
 use crate::utils::CensusError;
 
 use self::api_command::ApiCommand;
@@ -46,39 +47,51 @@ async fn connect_tls_stream(
         });
     }
 
-    let try_tls = TlsConnector::new();
+    let url: String = "wss://push.planetside2.com/streaming?environment=".to_string()
+        + environment
+        + "&service-id=s:"
+        + serviceid;
 
-    match try_tls {
+    let mut root_cert_store = RootCertStore::empty();
+    root_cert_store.add_server_trust_anchors(
+        webpki_roots::TLS_SERVER_ROOTS
+            .0
+            .iter()
+            .map(|ta| {
+                OwnedTrustAnchor::from_subject_spki_name_constraints(
+                    ta.subject,
+                    ta.spki,
+                    ta.name_constraints,
+                )
+            }),
+    );
+
+    println!("connection attempt \nroots loaded: {} \nurl: {}", root_cert_store.roots.len(), url);
+
+    let tls_config = ClientConfig::builder()
+        .with_safe_default_cipher_suites()
+        .with_safe_default_kx_groups()
+        .with_safe_default_protocol_versions()
+        .unwrap()
+        .with_root_certificates(root_cert_store)
+        .with_no_client_auth();
+
+    let try_connect = connect_async_tls_with_config(url, None, Some(Connector::Rustls(Arc::new(tls_config)))).await;
+
+
+    return match try_connect {
         Err(err) => {
-            return Err(CensusError {
-                err_msg: "Unable to create TLS connector".to_string(),
+            Err(CensusError {
+                err_msg: "Unable to connect to census events api".to_string(),
                 parent_err: Some(err.to_string()),
-            });
+            })
         }
-        Ok(tls) => {
-            let url: String = "wss://push.planetside2.com/streaming?environment=".to_string()
-                + environment
-                + "&service-id=s:"
-                + serviceid;
 
-            let try_connect =
-                connect_async_tls_with_config(url, None, Some(Connector::NativeTls(tls))).await;
-
-            match try_connect {
-                Err(err) => {
-                    return Err(CensusError {
-                        err_msg: "Unable to connect to census events api".to_string(),
-                        parent_err: Some(err.to_string()),
-                    });
-                }
-
-                Ok(connect) => {
-                    let (ws_stream, _) = connect;
-                    return Ok(ws_stream);
-                }
-            }
+        Ok(connect) => {
+            let (ws_stream, _) = connect;
+            Ok(ws_stream)
         }
-    }
+    };
 }
 
 pub async fn connect(environment: &str, serviceid: &str) -> Result<EventClient, CensusError> {
@@ -213,7 +226,7 @@ impl EventClient {
                         &self.serviceid,
                         &self.reconnect_count,
                     )
-                    .await;
+                        .await;
 
                     let tls_streams;
                     match try_tls_streams {

@@ -1,16 +1,15 @@
-use std::{sync::Arc, time::SystemTime};
+use std::sync::Arc;
 
-use num_traits::ToPrimitive;
-use serde_json::{json, Value};
+use serde_json::Value;
 
 use crate::utils::CensusError;
 
-use super::{census_value::CensusValue, item::Item, query_builder::Resolveable, RestClient};
+use super::{census_value::CensusValue, query_builder::Resolveable, RestClient};
 
 pub enum AchievementResolves {}
 
 impl Resolveable for AchievementResolves {
-    fn from_resolve_string(resolve: &str) -> Option<Self> {
+    fn from_resolve_string(_resolve: &str) -> Option<Self> {
         return None;
     }
 
@@ -74,14 +73,14 @@ impl Achievement {
 
         let char = query.get().await;
 
-        match char {
-            Err(err) => return Err(err),
+        return match char {
+            Err(err) => Err(err),
             Ok(jsonval) => {
                 let jsonchar = jsonval["achievement_list"][0].clone();
 
                 self.update(&jsonchar);
 
-                return Ok(());
+                Ok(())
             }
         }
     }
